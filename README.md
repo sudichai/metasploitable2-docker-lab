@@ -87,7 +87,8 @@ The script:
 - Installs `whiptail` automatically if missing (its only dependency)
 - Shows a TUI input box asking for the target IP
 - Shows a TUI menu of known Metasploitable2 exploit modules to pick from (or "open msfconsole" for manual/free-form use)
-- Runs `msfconsole` with `LHOST`/`RHOSTS` pre-set for the chosen module
+- Before running, shows an attack-detail screen (module path, port, what the vulnerability is, expected outcome) — confirm with **Run** or go **Back** to the menu
+- Runs `msfconsole` with `LHOST`/`RHOSTS` pre-set for the chosen module, then automatically exits back to the menu (no more getting stuck at an interactive `msf6 >` prompt)
 - After each run, asks whether to launch another module against the same target
 
 ---
