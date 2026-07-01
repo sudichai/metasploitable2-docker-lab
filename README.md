@@ -1,13 +1,15 @@
 # Metasploit Lab — Docker Setup
 
-A two-machine penetration testing lab using Docker.  
-No ISO upload required — everything is pulled from Docker Hub.
+A two-machine penetration testing lab. The target runs in Docker (no ISO
+upload required — pulled from Docker Hub); the attacker uses its native
+`msfconsole` (e.g. Kali ships with Metasploit Framework built in) driven
+by a whiptail attack-menu TUI.
 
 ```
 ┌─────────────────────┐          ┌──────────────────────┐
 │   Attacker Machine  │          │    Target Machine     │
-│   Metasploit MSF    │─────────▶│   Metasploitable2     │
-│   (setup_attacker)  │  network │   (setup_target)      │
+│   native msfconsole │─────────▶│   Metasploitable2     │
+│   (setup_attacker)  │  network │   (Docker, setup_target) │
 └─────────────────────┘          └──────────────────────┘
 ```
 
@@ -15,10 +17,9 @@ No ISO upload required — everything is pulled from Docker Hub.
 
 ## Requirements
 
-- Ubuntu 18.04+ or Debian 9+ on both machines
-- Internet access (scripts pull images from Docker Hub)
+- Target machine: Ubuntu 18.04+ or Debian 9+, internet access (pulls the Metasploitable2 image), `sudo` / root access
+- Attacker machine: Metasploit Framework installed (`msfconsole` on PATH — e.g. Kali's default install), `sudo` / root access
 - Both machines on the same network
-- `sudo` / root access
 
 ---
 
@@ -66,23 +67,13 @@ This will:
 
 ---
 
-### 2. Attacker Machine — Run Metasploit Framework
+### 2. Attacker Machine — Attack Menu (native msfconsole)
 
-Two steps: a one-time prereq install, then the attack-menu TUI.
+No Docker needed here — the script drives the `msfconsole` already installed on the machine (Kali includes it by default).
 
-**Step 1 — one-time setup** (Docker, whiptail, pulls the msf image):
 ```bash
 git clone https://github.com/sudichai/metasploitable2-docker-lab.git
 cd metasploitable2-docker-lab
-sudo bash attacker/setup_prereqs.sh
-```
-Or without cloning:
-```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/sudichai/metasploitable2-docker-lab/master/attacker/setup_prereqs.sh)"
-```
-
-**Step 2 — attack menu** (run this every time you want to attack):
-```bash
 sudo bash attacker/setup_attacker.sh
 ```
 Or without cloning:
@@ -91,10 +82,12 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/sudichai/metasploit
 ```
 > Use `bash -c "$(curl ...)"` rather than `curl | bash` — piping would hand the script's stdin to curl's output instead of your terminal, breaking the TUI.
 
-`setup_attacker.sh` does no installation — it checks Docker/whiptail are present (exits with a hint to run `setup_prereqs.sh` if not), then:
+The script:
+- Checks `msfconsole` is on PATH (exits with an install hint if not — Metasploit itself is not auto-installed, it's a large framework)
+- Installs `whiptail` automatically if missing (its only dependency)
 - Shows a TUI input box asking for the target IP
 - Shows a TUI menu of known Metasploitable2 exploit modules to pick from (or "open msfconsole" for manual/free-form use)
-- Launches the container with `LHOST`/`RHOSTS` pre-set and runs the chosen module
+- Runs `msfconsole` with `LHOST`/`RHOSTS` pre-set for the chosen module
 - After each run, asks whether to launch another module against the same target
 
 ---
@@ -162,8 +155,8 @@ sudo docker start metasploitable            # start again
 
 ### Attacker machine
 ```bash
-# MSF container auto-removes after each module run
-# Re-run the attack menu to start a new session (no need to redo setup_prereqs.sh)
+# No container to manage — msfconsole runs natively.
+# Re-run the attack menu to start a new session:
 sudo bash attacker/setup_attacker.sh
 ```
 
@@ -171,12 +164,12 @@ sudo bash attacker/setup_attacker.sh
 
 ## Network Architecture
 
-Both containers run with `--network host`, meaning they bind directly to the real IP of their host machine — no port mapping or NAT needed. Traffic flows as if both services are running natively.
+The target container runs with `--network host`, binding directly to the real IP of its host machine — no port mapping or NAT needed. The attacker side has no container at all; `msfconsole` runs natively and reaches the target over the regular network.
 
 ```
 Kali / Attacker       Firewall / Router       Target (Metasploitable2)
 192.168.x.x     ───────────────────────────▶  192.168.x.x
-msfconsole                                      all vulnerable ports open
+msfconsole (native)                             all vulnerable ports open
 ```
 
 ---

