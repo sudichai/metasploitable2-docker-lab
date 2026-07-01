@@ -35,6 +35,18 @@ else
 fi
 
 # ============================================================
+# STEP 1b: Check and install whiptail (powers the TUI prompt)
+# ============================================================
+echo -e "\n${CYAN}[STEP 1b] Checking whiptail installation...${NC}"
+if ! command -v whiptail &> /dev/null; then
+  echo -e "${YELLOW}[INFO] whiptail not found. Installing...${NC}"
+  apt update -qq && apt install -y whiptail
+  echo -e "${GREEN}[OK] whiptail installed.${NC}"
+else
+  echo -e "${GREEN}[OK] whiptail is already installed.${NC}"
+fi
+
+# ============================================================
 # STEP 2: Remove existing MSF container if it already exists
 # ============================================================
 echo -e "\n${CYAN}[STEP 2] Checking for existing container...${NC}"
@@ -65,14 +77,20 @@ mkdir -p "$MSF_DATA"
 echo -e "${GREEN}[OK] MSF data directory ready at: $MSF_DATA${NC}"
 
 # ============================================================
-# STEP 5: Ask user for target IP
+# STEP 5: Ask user for target IP via whiptail TUI input box
 # ============================================================
 echo -e "\n${CYAN}[STEP 5] Target configuration...${NC}"
-read -p "  Enter target IP (Metasploitable2 host IP, e.g. 192.168.2.20): " TARGET_IP
 
-if [ -z "$TARGET_IP" ]; then
+TARGET_IP=$(whiptail --title "Metasploit Attacker Setup" \
+  --inputbox "Enter target IP (Metasploitable2 host IP):" 10 60 "192.168.2.20" \
+  3>&1 1>&2 2>&3)
+TUI_EXIT=$?
+
+if [ $TUI_EXIT -ne 0 ] || [ -z "$TARGET_IP" ]; then
   echo -e "${YELLOW}[WARN] No target IP provided. You can set RHOSTS manually inside msfconsole.${NC}"
   TARGET_IP="<TARGET_IP>"
+else
+  echo -e "${GREEN}[OK] Target IP set to: $TARGET_IP${NC}"
 fi
 
 # ============================================================

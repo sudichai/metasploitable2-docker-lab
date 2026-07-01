@@ -26,8 +26,16 @@ No ISO upload required — everything is pulled from Docker Hub.
 
 ### 1. Target Machine — Run Metasploitable2
 
+Clone and run:
 ```bash
+git clone https://github.com/sudichai/metasploitable2-docker-lab.git
+cd metasploitable2-docker-lab
 sudo bash target/setup_target.sh
+```
+
+Or pull and run in one line, no clone needed:
+```bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/sudichai/metasploitable2-docker-lab/master/target/setup_target.sh)"
 ```
 
 This will:
@@ -60,15 +68,25 @@ This will:
 
 ### 2. Attacker Machine — Run Metasploit Framework
 
+Clone and run:
 ```bash
+git clone https://github.com/sudichai/metasploitable2-docker-lab.git
+cd metasploitable2-docker-lab
 sudo bash attacker/setup_attacker.sh
 ```
 
+Or pull and run in one line, no clone needed:
+```bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/sudichai/metasploitable2-docker-lab/master/attacker/setup_attacker.sh)"
+```
+> Use `bash -c "$(curl ...)"` rather than `curl | bash` — piping would hand the script's stdin to curl's output instead of your terminal, breaking the TUI input box below.
+
 This will:
 - Install Docker if not present
+- Install `whiptail` if not present (powers the TUI prompt)
 - Pull `metasploitframework/metasploit-framework` image
 - Create `~/.msf4` for persistent loot/sessions across runs
-- Ask for target IP then launch `msfconsole` with `LHOST` and `RHOSTS` pre-set
+- Show a TUI input box asking for the target IP, then launch `msfconsole` with `LHOST` and `RHOSTS` pre-set
 
 ---
 
