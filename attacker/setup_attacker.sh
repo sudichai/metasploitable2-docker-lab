@@ -24,14 +24,24 @@ NC='\033[0m'
 # ============================================================
 echo -e "${CYAN}[STEP 1] Checking Docker installation...${NC}"
 if ! command -v docker &> /dev/null; then
-  echo -e "${YELLOW}[INFO] Docker not found. Installing docker.io...${NC}"
-  apt update -qq && apt install -y docker.io
+  echo -e "${YELLOW}[INFO] Docker not found. Installing via get.docker.com (official script — avoids distro repo/keyring issues, e.g. on Kali)...${NC}"
+  if ! curl -fsSL https://get.docker.com | sh; then
+    echo -e "${RED}[ERROR] Docker installation failed. Aborting.${NC}"
+    exit 1
+  fi
   systemctl enable --now docker
-  # Add current user to docker group to allow running without sudo
-  usermod -aG docker "$SUDO_USER"
+  # Add the invoking user (not root) to the docker group to allow running without sudo
+  if [ -n "$SUDO_USER" ]; then
+    usermod -aG docker "$SUDO_USER"
+  fi
   echo -e "${GREEN}[OK] Docker installed. You may need to re-login for group change to take effect.${NC}"
 else
   echo -e "${GREEN}[OK] Docker is already installed: $(docker --version)${NC}"
+fi
+
+if ! command -v docker &> /dev/null; then
+  echo -e "${RED}[ERROR] Docker still not available after installation attempt. Aborting.${NC}"
+  exit 1
 fi
 
 # ============================================================
@@ -40,7 +50,10 @@ fi
 echo -e "\n${CYAN}[STEP 1b] Checking whiptail installation...${NC}"
 if ! command -v whiptail &> /dev/null; then
   echo -e "${YELLOW}[INFO] whiptail not found. Installing...${NC}"
-  apt update -qq && apt install -y whiptail
+  if ! (apt update -qq && apt install -y whiptail); then
+    echo -e "${RED}[ERROR] whiptail installation failed. Aborting.${NC}"
+    exit 1
+  fi
   echo -e "${GREEN}[OK] whiptail installed.${NC}"
 else
   echo -e "${GREEN}[OK] whiptail is already installed.${NC}"
@@ -131,7 +144,7 @@ echo -e "\n============================================"
 echo -e "${GREEN}  Metasploit session ended.${NC}"
 echo -e "============================================"
 echo -e "  To start again:"
-echo -e "  ${YELLOW}sudo bash setup_attacker.sh${NC}"
+echo -e "  ${YELLOW}sudo bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/sudichai/metasploitable2-docker-lab/master/attacker/setup_attacker.sh)\"${NC}"
 echo -e ""
 echo -e "  Useful MSF modules for Metasploitable2:"
 echo -e "  ${CYAN}exploit/unix/ftp/vsftpd_234_backdoor${NC}      (port 21)"

@@ -28,12 +28,20 @@ PORTS=(21 22 23 25 80 111 139 445 512 513 514 1099 1524 2049 2121 3306 3632 5432
 # ============================================================
 echo -e "${CYAN}[STEP 1] Checking Docker installation...${NC}"
 if ! command -v docker &> /dev/null; then
-  echo -e "${YELLOW}[INFO] Docker not found. Installing docker.io...${NC}"
-  apt update -qq && apt install -y docker.io
+  echo -e "${YELLOW}[INFO] Docker not found. Installing via get.docker.com (official script — avoids distro repo/keyring issues, e.g. on Kali)...${NC}"
+  if ! curl -fsSL https://get.docker.com | sh; then
+    echo -e "${RED}[ERROR] Docker installation failed. Aborting.${NC}"
+    exit 1
+  fi
   systemctl enable --now docker
   echo -e "${GREEN}[OK] Docker installed successfully.${NC}"
 else
   echo -e "${GREEN}[OK] Docker is already installed: $(docker --version)${NC}"
+fi
+
+if ! command -v docker &> /dev/null; then
+  echo -e "${RED}[ERROR] Docker still not available after installation attempt. Aborting.${NC}"
+  exit 1
 fi
 
 # ============================================================
