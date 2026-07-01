@@ -86,8 +86,8 @@ The script:
 - Checks `msfconsole` is on PATH (exits with an install hint if not — Metasploit itself is not auto-installed, it's a large framework)
 - Installs `whiptail` automatically if missing (its only dependency)
 - Shows a TUI input box asking for the target IP
-- Shows a TUI menu of known Metasploitable2 exploit modules to pick from (or "open msfconsole" for manual/free-form use)
-- Before running, shows an attack-detail screen (module path, port, what the vulnerability is, expected outcome) — confirm with **Run** or go **Back** to the menu
+- Shows a TUI menu of known Metasploitable2 exploit modules to pick from, plus "open msfconsole" for manual/free-form use, and **"Run ALL scenarios (1-8) sequentially"** to fire every module at the target one after another
+- Before running, shows an attack-detail screen (module path, port, what the vulnerability is, expected outcome) — confirm with **Run** or go **Back** to the menu. For "Run ALL", this lists all 8 modules queued up before you confirm.
 - Runs `msfconsole` with `LHOST`/`RHOSTS` pre-set for the chosen module, then automatically exits back to the menu (no more getting stuck at an interactive `msf6 >` prompt)
 - After each run, asks whether to launch another module against the same target
 - When you exit the attack menu, prints a session summary (timestamp, module, target, outcome) for every attack you ran
