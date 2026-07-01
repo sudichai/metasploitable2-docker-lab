@@ -68,29 +68,40 @@ This will:
 
 ### 2. Attacker Machine — Run Metasploit Framework
 
-Clone and run:
+Two steps: a one-time prereq install, then the attack-menu TUI.
+
+**Step 1 — one-time setup** (Docker, whiptail, pulls the msf image):
 ```bash
 git clone https://github.com/sudichai/metasploitable2-docker-lab.git
 cd metasploitable2-docker-lab
-sudo bash attacker/setup_attacker.sh
+sudo bash attacker/setup_prereqs.sh
+```
+Or without cloning:
+```bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/sudichai/metasploitable2-docker-lab/master/attacker/setup_prereqs.sh)"
 ```
 
-Or pull and run in one line, no clone needed:
+**Step 2 — attack menu** (run this every time you want to attack):
+```bash
+sudo bash attacker/setup_attacker.sh
+```
+Or without cloning:
 ```bash
 sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/sudichai/metasploitable2-docker-lab/master/attacker/setup_attacker.sh)"
 ```
-> Use `bash -c "$(curl ...)"` rather than `curl | bash` — piping would hand the script's stdin to curl's output instead of your terminal, breaking the TUI input box below.
+> Use `bash -c "$(curl ...)"` rather than `curl | bash` — piping would hand the script's stdin to curl's output instead of your terminal, breaking the TUI.
 
-This will:
-- Install Docker if not present
-- Install `whiptail` if not present (powers the TUI prompt)
-- Pull `metasploitframework/metasploit-framework` image
-- Create `~/.msf4` for persistent loot/sessions across runs
-- Show a TUI input box asking for the target IP, then launch `msfconsole` with `LHOST` and `RHOSTS` pre-set
+`setup_attacker.sh` does no installation — it checks Docker/whiptail are present (exits with a hint to run `setup_prereqs.sh` if not), then:
+- Shows a TUI input box asking for the target IP
+- Shows a TUI menu of known Metasploitable2 exploit modules to pick from (or "open msfconsole" for manual/free-form use)
+- Launches the container with `LHOST`/`RHOSTS` pre-set and runs the chosen module
+- After each run, asks whether to launch another module against the same target
 
 ---
 
 ## Useful MSF Modules for Metasploitable2
+
+These 8 modules are built into the attack-menu TUI (`setup_attacker.sh`) — pick a number and it runs the module for you. Shown here for reference / manual use inside `msfconsole` (menu option 9).
 
 ```
 # FTP Backdoor (port 21)
@@ -151,8 +162,8 @@ sudo docker start metasploitable            # start again
 
 ### Attacker machine
 ```bash
-# MSF container auto-removes after exit
-# Re-run the script to start a new session
+# MSF container auto-removes after each module run
+# Re-run the attack menu to start a new session (no need to redo setup_prereqs.sh)
 sudo bash attacker/setup_attacker.sh
 ```
 
