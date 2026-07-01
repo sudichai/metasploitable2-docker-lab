@@ -20,6 +20,32 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # ============================================================
+# STEP 0: Repair Kali's archive keyring if the package index is
+#         unsigned (NO_PUBKEY / "repository is not signed"). This
+#         happens on Kali images with a stale kali-archive-keyring
+#         and blocks apt-get update for every step below, including
+#         Docker's own install script.
+# ============================================================
+if grep -qi '^ID=kali' /etc/os-release 2>/dev/null; then
+  echo -e "${CYAN}[STEP 0] Kali detected — checking package index signature...${NC}"
+  if ! apt-get update -qq 2>/dev/null; then
+    echo -e "${YELLOW}[INFO] Package index is unsigned (stale keyring). Repairing kali-archive-keyring...${NC}"
+    apt-get update -qq --allow-unauthenticated
+    apt-get install -y --allow-unauthenticated --reinstall kali-archive-keyring
+    if ! apt-get update -qq; then
+      echo -e "${RED}[ERROR] Could not repair the Kali keyring automatically.${NC}"
+      echo -e "${YELLOW}[HINT] Try manually:${NC}"
+      echo -e "  sudo apt-get update --allow-unauthenticated"
+      echo -e "  sudo apt-get install --reinstall kali-archive-keyring"
+      exit 1
+    fi
+    echo -e "${GREEN}[OK] Kali archive keyring repaired.${NC}"
+  else
+    echo -e "${GREEN}[OK] Package index is valid.${NC}"
+  fi
+fi
+
+# ============================================================
 # STEP 1: Check and install Docker if not present
 # ============================================================
 echo -e "${CYAN}[STEP 1] Checking Docker installation...${NC}"
