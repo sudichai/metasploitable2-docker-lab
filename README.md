@@ -90,6 +90,7 @@ The script:
 - Before running, shows an attack-detail screen (module path, port, what the vulnerability is, expected outcome) — confirm with **Run** or go **Back** to the menu
 - Runs `msfconsole` with `LHOST`/`RHOSTS` pre-set for the chosen module, then automatically exits back to the menu (no more getting stuck at an interactive `msf6 >` prompt)
 - After each run, asks whether to launch another module against the same target
+- When you exit the attack menu, prints a session summary (timestamp, module, target, outcome) for every attack you ran
 
 ---
 

