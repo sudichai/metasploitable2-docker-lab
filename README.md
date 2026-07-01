@@ -165,4 +165,3 @@ msfconsole                                      all vulnerable ports open
 
 - Ubuntu 20.04 LTS (target machine)
 - Kali Linux 2024 (attacker machine)
-- Sangfor HCI environment
